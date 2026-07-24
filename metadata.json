@@ -1,0 +1,6 @@
+{
+  "name": "Craving Corner Restaurant & Cafe",
+  "description": "Official website, interactive digital menu, delivery ordering system, and event bookings for Craving Corner in Gisozi, Kigali.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
