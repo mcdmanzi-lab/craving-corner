@@ -9,8 +9,6 @@ interface EventBookingModalProps {
 }
 
 export const EventBookingModal: React.FC<EventBookingModalProps> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
   const [selectedPackage, setSelectedPackage] = useState(EVENT_DECOR_PACKAGES[0]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -46,11 +44,13 @@ export const EventBookingModal: React.FC<EventBookingModalProps> = ({ isOpen, on
     return 'Multi-Table Group Banquet Configuration';
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim() || !customerPhone.trim()) return;
 
-    const newBooking = saveEventBooking({
+    const newBooking = await saveEventBooking({
       eventType: selectedPackage.title,
       customerName,
       phone: customerPhone,

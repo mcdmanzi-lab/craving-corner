@@ -31,9 +31,14 @@ export const TableBookingModal: React.FC<TableBookingModalProps> = ({ isOpen, on
   const [confirmedBooking, setConfirmedBooking] = useState<TableReservation | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setMenuList(getStoredMenuItems());
-    }
+    if (!isOpen) return;
+
+    const loadMenu = async () => {
+      const items = await getStoredMenuItems();
+      setMenuList(items);
+    };
+
+    void loadMenu();
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -71,11 +76,11 @@ export const TableBookingModal: React.FC<TableBookingModalProps> = ({ isOpen, on
 
   const preOrderTotalRWF = preOrders.reduce((sum, p) => sum + (p.priceRWF * p.quantity), 0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim() || !phone.trim()) return;
 
-    const newRes = saveTableReservation({
+    const newRes = await saveTableReservation({
       customerName,
       phone,
       email,

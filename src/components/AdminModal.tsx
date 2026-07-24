@@ -50,27 +50,39 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, onMenuC
   const [menuIsMondayBurgerPromo, setMenuIsMondayBurgerPromo] = useState(false);
   const [menuMondayPromoPrice, setMenuMondayPromoPrice] = useState<number>(10000);
 
-  useEffect(() => {
-    if (isOpen && isAuthenticated) {
-      loadAllData();
-    }
-  }, [isOpen, isAuthenticated]);
-
-  const loadAllData = () => {
-    setTables(getStoredTables());
-    setEvents(getStoredEvents());
-    setOrders(getStoredOrders());
-    setMenuItems(getStoredMenuItems());
+  const loadAllData = async () => {
+    const [tablesData, eventsData, ordersData, menuData] = await Promise.all([
+      getStoredTables(),
+      getStoredEvents(),
+      getStoredOrders(),
+      getStoredMenuItems(),
+    ]);
+    setTables(tablesData);
+    setEvents(eventsData);
+    setOrders(ordersData);
+    setMenuItems(menuData);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!isOpen || !isAuthenticated) return;
+
+    void loadAllData();
+
+    const refreshInterval = window.setInterval(() => {
+      void loadAllData();
+    }, 5000);
+
+    return () => window.clearInterval(refreshInterval);
+  }, [isOpen, isAuthenticated]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanInput = passwordInput.trim().toLowerCase();
     // Required admin password: "craving corner"
     if (cleanInput === 'craving corner' || cleanInput === 'cravingcorner') {
       setIsAuthenticated(true);
       setAuthError('');
-      loadAllData();
+      await loadAllData();
     } else {
       setAuthError('Incorrect password! Password is "craving corner".');
     }
@@ -82,43 +94,43 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, onMenuC
     setAuthError('');
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     if (window.confirm('Are you sure you want to clear all table bookings, event packages, and food orders to start newly?')) {
-      clearAllStoreData();
-      loadAllData();
+      await clearAllStoreData();
+      await loadAllData();
     }
   };
 
   // Table status actions
-  const handleTableStatusChange = (id: string, status: TableReservation['status']) => {
-    const updated = updateTableStatus(id, status);
+  const handleTableStatusChange = async (id: string, status: TableReservation['status']) => {
+    const updated = await updateTableStatus(id, status);
     setTables(updated);
   };
 
-  const handleTableDelete = (id: string) => {
-    const updated = deleteTableReservation(id);
+  const handleTableDelete = async (id: string) => {
+    const updated = await deleteTableReservation(id);
     setTables(updated);
   };
 
   // Event status actions
-  const handleEventStatusChange = (id: string, status: EventBooking['status']) => {
-    const updated = updateEventStatus(id, status);
+  const handleEventStatusChange = async (id: string, status: EventBooking['status']) => {
+    const updated = await updateEventStatus(id, status);
     setEvents(updated);
   };
 
-  const handleEventDelete = (id: string) => {
-    const updated = deleteEventBooking(id);
+  const handleEventDelete = async (id: string) => {
+    const updated = await deleteEventBooking(id);
     setEvents(updated);
   };
 
   // Order status actions
-  const handleOrderStatusChange = (id: string, status: FoodOrder['status']) => {
-    const updated = updateOrderStatus(id, status);
+  const handleOrderStatusChange = async (id: string, status: FoodOrder['status']) => {
+    const updated = await updateOrderStatus(id, status);
     setOrders(updated);
   };
 
-  const handleOrderDelete = (id: string) => {
-    const updated = deleteFoodOrder(id);
+  const handleOrderDelete = async (id: string) => {
+    const updated = await deleteFoodOrder(id);
     setOrders(updated);
   };
 
@@ -153,7 +165,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, onMenuC
     setMenuMondayPromoPrice(item.mondayPromoPrice || 10000);
   };
 
-  const handleSaveMenuItem = (e: React.FormEvent) => {
+  const handleSaveMenuItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!menuName.trim()) return;
 
@@ -171,24 +183,24 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, onMenuC
       mondayPromoPrice: menuIsMondayBurgerPromo ? Number(menuMondayPromoPrice) : undefined,
     };
 
-    const updated = saveMenuItem(newItem);
+    const updated = await saveMenuItem(newItem);
     setMenuItems(updated);
     setIsCreatingNew(false);
     setEditingItem(null);
     if (onMenuChange) onMenuChange();
   };
 
-  const handleDeleteMenuItem = (id: string) => {
+  const handleDeleteMenuItem = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this menu item from Craving Corner menu?')) {
-      const updated = deleteMenuItem(id);
+      const updated = await deleteMenuItem(id);
       setMenuItems(updated);
       if (onMenuChange) onMenuChange();
     }
   };
 
-  const handleResetMenuDefaults = () => {
+  const handleResetMenuDefaults = async () => {
     if (window.confirm('Reset all menu items to original Craving Corner default items? Custom items will be replaced.')) {
-      const resetList = resetMenuItemsToDefault();
+      const resetList = await resetMenuItemsToDefault();
       setMenuItems(resetList);
       if (onMenuChange) onMenuChange();
     }

@@ -21,8 +21,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onRemoveItem,
   onClearCart
 }) => {
-  if (!isOpen) return null;
-
   const [selectedZone, setSelectedZone] = useState(KIGALI_ZONES[0]);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -41,7 +39,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const deliveryFeeRWF = cartItems.length > 0 ? selectedZone.feeRWF : 0;
   const grandTotalRWF = subtotalRWF + deliveryFeeRWF;
 
-  const handlePlaceDirectOrder = () => {
+  if (!isOpen) return null;
+
+  const handlePlaceDirectOrder = async () => {
     if (cartItems.length === 0) return;
     if (!customerName.trim() || !customerPhone.trim()) {
       alert('Please provide your name and phone number so our kitchen can prepare your delivery.');
@@ -61,7 +61,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       };
     });
 
-    const newSavedOrder = saveFoodOrder({
+    const newSavedOrder = await saveFoodOrder({
       customerName,
       phone: customerPhone,
       deliveryAddress: deliveryAddress || `${selectedZone.name} (Main Road Landmark)`,
