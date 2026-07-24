@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
@@ -140,7 +141,11 @@ app.post('/api/chat', async (req, res) => {
 
 // Vite middleware / static production handling
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
+  const distPath = path.join(process.cwd(), 'dist');
+  const indexPath = path.join(distPath, 'index.html');
+  const shouldServeBuiltFiles = process.env.NODE_ENV === 'production' || fs.existsSync(indexPath);
+
+  if (!shouldServeBuiltFiles) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -148,10 +153,9 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      res.sendFile(indexPath);
     });
   }
 
