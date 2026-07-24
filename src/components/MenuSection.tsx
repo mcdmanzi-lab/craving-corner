@@ -18,7 +18,20 @@ export const MenuSection: React.FC<MenuSectionProps> = ({ onSelectItem, onQuickA
   const [showMondayPromoOnly, setShowMondayPromoOnly] = useState(false);
 
   useEffect(() => {
-    setMenuItemsList(getStoredMenuItems());
+    let active = true;
+
+    const loadMenuItems = async () => {
+      const items = await getStoredMenuItems();
+      if (active) {
+        setMenuItemsList(items);
+      }
+    };
+
+    void loadMenuItems();
+
+    return () => {
+      active = false;
+    };
   }, [menuVersion]);
 
   const categories: { id: MenuCategory; label: string; icon?: string }[] = [
