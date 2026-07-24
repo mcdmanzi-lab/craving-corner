@@ -4,14 +4,70 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import { MENU_ITEMS as DEFAULT_MENU_ITEMS } from './src/data/cravingCornerData';
+import type { MenuItem } from './src/types';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+interface TableReservation {
+  id: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+  reservationDate: string;
+  reservationTime: string;
+  guestCount: number;
+  seatingArea: string;
+  specialNotes?: string;
+  preOrderedItems?: Array<{ id: string; name: string; quantity: number; priceRWF: number }>;
+  preOrderTotalRWF?: number;
+  status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
+  createdAt: string;
+}
+
+interface EventBooking {
+  id: string;
+  eventType: string;
+  customerName: string;
+  phone: string;
+  eventDate: string;
+  eventTime: string;
+  guestCount: number;
+  selectedAddons: string[];
+  specialRequests?: string;
+  status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
+  createdAt: string;
+}
+
+interface FoodOrder {
+  id: string;
+  customerName: string;
+  phone: string;
+  deliveryAddress: string;
+  deliveryZone: string;
+  paymentMethod: string;
+  items: Array<{ name: string; portion?: string; options?: string[]; quantity: number; totalRWF: number }>;
+  subtotalRWF: number;
+  deliveryFeeRWF: number;
+  grandTotalRWF: number;
+  status: 'Pending' | 'In Preparation' | 'Out for Delivery' | 'Completed' | 'Cancelled';
+  createdAt: string;
+}
+
+interface AdminDataStore {
+  tables: TableReservation[];
+  events: EventBooking[];
+  orders: FoodOrder[];
+  menuItems: MenuItem[];
+}
+
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_FILE = path.join(DATA_DIR, 'admin-data.json');
 
 app.use(express.json());
 
@@ -85,9 +141,184 @@ YOUR GOALS:
 3. Answer any questions about location (next to Rubis Gas Station in Gisozi), 24/7 hours, delivery across Kigali, and event decoration bookings.
 4. Keep responses warm, concise, well-structured, and formatted with clean bullet points or line breaks. Always quote prices in RWF.`;
 
+function createDefaultStore(): AdminDataStore {
+  return {
+    tables: [],
+    events: [],
+    orders: [],
+    menuItems: DEFAULT_MENU_ITEMS,
+  };
+}
+
+function readAdminStore(): AdminDataStore {
+  try {
+    if (!fs.existsSync(DATA_FILE)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      fs.writeFileSync(DATA_FILE, JSON.stringify(createDefaultStore(), null, 2));
+    }
+
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    const parsed = JSON.parse(raw) as Partial<AdminDataStore>;
+    return {
+      tables: parsed.tables || [],
+      events: parsed.events || [],
+      orders: parsed.orders || [],
+      menuItems: parsed.menuItems || DEFAULT_MENU_ITEMS,
+    };
+  } catch (error) {
+    console.warn('Failed to read admin data store:', error);
+    return createDefaultStore();
+  }
+}
+
+function writeAdminStore(store: AdminDataStore) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2));
+  } catch (error) {
+    console.warn('Failed to write admin data store:', error);
+  }
+}
+
 // API Routes
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', restaurant: 'Craving Corner Restaurant & Cafe', location: 'Gisozi, Kigali' });
+});
+
+app.get('/api/admin/data', (req, res) => {
+  const store = readAdminStore();
+  res.json(store);
+});
+
+app.post('/api/admin/tables', (req, res) => {
+  const { action, data } = req.body as { action?: string; data?: any };
+  const store = readAdminStore();
+
+  if (action === 'create') {
+    const newReservation: TableReservation = {
+      ...data,
+      id: data?.id || `TB-${Math.floor(100 + Math.random() * 900)}`,
+      status: 'Pending',
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    store.tables = [newReservation, ...store.tables];
+    writeAdminStore(store);
+    return res.json(newReservation);
+  }
+
+  if (action === 'update') {
+    store.tables = store.tables.map(item => item.id === data?.id ? { ...item, ...data } : item);
+    writeAdminStore(store);
+    return res.json(store.tables);
+  }
+
+  if (action === 'delete') {
+    store.tables = store.tables.filter(item => item.id !== data?.id);
+    writeAdminStore(store);
+    return res.json(store.tables);
+  }
+
+  res.status(400).json({ error: 'Unsupported table action.' });
+});
+
+app.post('/api/admin/events', (req, res) => {
+  const { action, data } = req.body as { action?: string; data?: any };
+  const store = readAdminStore();
+
+  if (action === 'create') {
+    const booking: EventBooking = {
+      ...data,
+      id: data?.id || `EV-${Math.floor(200 + Math.random() * 800)}`,
+      status: 'Pending',
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    store.events = [booking, ...store.events];
+    writeAdminStore(store);
+    return res.json(booking);
+  }
+
+  if (action === 'update') {
+    store.events = store.events.map(item => item.id === data?.id ? { ...item, ...data } : item);
+    writeAdminStore(store);
+    return res.json(store.events);
+  }
+
+  if (action === 'delete') {
+    store.events = store.events.filter(item => item.id !== data?.id);
+    writeAdminStore(store);
+    return res.json(store.events);
+  }
+
+  res.status(400).json({ error: 'Unsupported event action.' });
+});
+
+app.post('/api/admin/orders', (req, res) => {
+  const { action, data } = req.body as { action?: string; data?: any };
+  const store = readAdminStore();
+
+  if (action === 'create') {
+    const order: FoodOrder = {
+      ...data,
+      id: data?.id || `ORD-${Math.floor(300 + Math.random() * 700)}`,
+      status: 'Pending',
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    store.orders = [order, ...store.orders];
+    writeAdminStore(store);
+    return res.json(order);
+  }
+
+  if (action === 'update') {
+    store.orders = store.orders.map(item => item.id === data?.id ? { ...item, ...data } : item);
+    writeAdminStore(store);
+    return res.json(store.orders);
+  }
+
+  if (action === 'delete') {
+    store.orders = store.orders.filter(item => item.id !== data?.id);
+    writeAdminStore(store);
+    return res.json(store.orders);
+  }
+
+  res.status(400).json({ error: 'Unsupported order action.' });
+});
+
+app.post('/api/admin/menu', (req, res) => {
+  const { action, data } = req.body as { action?: string; data?: any };
+  const store = readAdminStore();
+
+  if (action === 'create') {
+    const item = data as MenuItem;
+    const existingIdx = store.menuItems.findIndex(m => m.id === item.id);
+    if (existingIdx > -1) {
+      store.menuItems = [...store.menuItems];
+      store.menuItems[existingIdx] = item;
+    } else {
+      store.menuItems = [item, ...store.menuItems];
+    }
+    writeAdminStore(store);
+    return res.json(store.menuItems);
+  }
+
+  if (action === 'delete') {
+    store.menuItems = store.menuItems.filter(item => item.id !== data?.id);
+    writeAdminStore(store);
+    return res.json(store.menuItems);
+  }
+
+  if (action === 'reset') {
+    store.menuItems = DEFAULT_MENU_ITEMS;
+    writeAdminStore(store);
+    return res.json(store.menuItems);
+  }
+
+  res.status(400).json({ error: 'Unsupported menu action.' });
+});
+
+app.post('/api/admin/clear', (req, res) => {
+  const store = createDefaultStore();
+  writeAdminStore(store);
+  res.json({ ok: true });
 });
 
 app.post('/api/chat', async (req, res) => {
